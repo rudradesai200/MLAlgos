@@ -37,7 +37,7 @@ class AdaBoost:
 
         Returns
         -------
-        y : ndarray of shape (n_samples,) or (n_samples, n_outputs)
+        y : ndarray of shape (n_samples, 1)
             The predicted classes.
         """
         stump_preds = np.array([(stump.predict(X)) for stump in self.__stumps])
@@ -65,7 +65,7 @@ class AdaBoost:
         X : {array-like, sparse matrix} of shape (n_samples, n_features)
             The training input samples.
 
-        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+        y : array-like of shape (n_samples,) or (n_samples, 1)
             The target values (class labels in classification, real numbers in
             regression).
 
