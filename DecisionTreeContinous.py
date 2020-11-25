@@ -22,31 +22,34 @@ class DecisionTree:
         Not to be used directly.
         """
         def __init__(self,attr,val,is_leaf=False,decision=None):
-            self.split_attr = attr
-            self.split_val = val
-            self.is_leaf = is_leaf
-            self.branches = dict()
-            self.decision = decision
+            self.__split_attr = attr
+            self.__split_val = val
+            self.__is_leaf = is_leaf
+            self.__branches = dict()
+            self.__decision = decision
 
         def predict(self,obs):
             """Predicts label for the given obs.
             Expects obs to be a pandas row.
             """
-            if(self.is_leaf): return self.decision
+            if(self.__is_leaf): return self.__decision
             else:
-                nd = self.branches["left"] if(obs[self.split_attr] <= self.split_val) else self.branches["right"]
+                nd = self.__branches["left"] if(obs[self.__split_attr] <= self.__split_val) else self.__branches["right"]
                 if(nd != None): return nd.predict(obs)
                 else: raise ValueError("Node == None. Error building the tree.")
+
+        def add_branch(self,val,nd):
+            self.__branches[val] = nd
 
         def print(self,prefix="",isLast=True):
             """Pretty prints the Node"""
             if(self == None): return
             prstr = prefix + ("└─" if isLast else "├─")
 
-            if(self.is_leaf): print(prstr,self.decision)
-            else: print(prstr,self.split_attr,self.split_val)
+            if(self.__is_leaf): print(prstr,self.__decision)
+            else: print(prstr,self.__split_attr,self.__split_val)
 
-            for i,(b,v) in enumerate(self.branches.items()):
+            for i,(b,v) in enumerate(self.__branches.items()):
                 if(v != None):
                     if(i == (1)): v.print(prefix + f"| {b} ",True)
                     else: v.print(prefix+f"| {b} ",False)
@@ -117,10 +120,7 @@ class DecisionTree:
 
     def __entropy_of_split(self,df,attr):
         """Private Function. Finds the minimum entropy of split for continous attributes."""
-        s = set(df[attr])
-        l = list(df[attr])
-        freqcounts = {i : l.count(i) for i in s}
-        s = list(s)
+        s = list(set(df[attr]))
         start,end = 0,len(s)
         incr = 1 if(len(s) < DecisionTree.NDIV) else (len(s)//DecisionTree.NDIV)
         min_entropy = 1e100
@@ -129,7 +129,7 @@ class DecisionTree:
 
             for j in range(start,end,incr):
                 # Calculate Probabilities for passing to entropy.
-                pl = round(df["weights"][df[attr] <= s[j]].mean())
+                pl = round(np.dot((df[attr] <= s[j]),df["weights"])/np.sum(df["weights"]),4)
                 pr = round(1 - pl,4)
                 tl,tr = df["weights"][df[attr] <= s[j]],df["weights"][df[attr] > s[j]] 
                 ql = 0 if(pl <= 0) else round(np.dot((df[self.target][df[attr] <= s[j]] == 1),tl)/np.sum(tl) ,4)
@@ -154,12 +154,10 @@ class DecisionTree:
             for j in range(start,end,incr):
                 # Calculate Probabilities
                 wsum = np.sum(df["weights"])
-                left_split = df[attr] <= s[j]
-                left_weights = df["weights"][left_split]
-                a = np.dot((df[self.target][left_split] == 1),left_weights)/np.sum(left_weights)
-                b = np.dot((left_split),df["weights"])/wsum
-                x = np.dot((df[self.target] == 1),df["weights"])/wsum - a
-                y = 1 - b
+                a = np.dot((df[self.target][df[attr] <= s[j]] == 1),df["weights"][df[attr] <= s[j]])
+                b = np.dot((df[attr] <= s[j]),df["weights"])
+                x = np.dot((df[self.target] == 1),df["weights"]) - a
+                y = wsum - b
                 # Zero Split
                 if((b==0)or(y==0)): continue
                 curr_acc = (a + y - x)/(b+y)
@@ -218,11 +216,9 @@ class DecisionTree:
                 raise ValueError("Zero split detected. Left or Right split empty.")
             else:
                 node = DecisionTree.__DecisionTreeNode(attr,split_val)
-                node.branches["left"] = self.__create_node(df[df[attr] <= split_val],currlevel+1)
-                node.branches["right"] = self.__create_node(df[df[attr] > split_val],currlevel+1)
+                node.add_branch("left",self.__create_node(df[df[attr] <= split_val],currlevel+1))
+                node.add_branch("right",self.__create_node(df[df[attr] > split_val],currlevel+1))
                 return node
-
-    def _copy(self): return DecisionTree(self.criterion,self.num_nodes_stop,self.max_level,self.feature_sampling,self.b)
 
     def predict(self, X):
         """
@@ -257,57 +253,3 @@ def eval_decision_tree(tree, test_X):
     """ Takes in a tree, and a bunch of instances X and 
     returns the tree predicted values at those instances."""
     return tree.predict(test_X)
-
-if __name__ == "__main__":
-    def load_dataset(loc):
-        ds = np.load(loc)
-        X_train = ds['arr_0']
-        X_test = ds['arr_2']
-        Y_train = ds['arr_1']
-        Y_test = ds['arr_3']
-        return (X_train,Y_train,X_test,Y_test)
-
-    def plot(tree, DS="A"):
-        (X_train,Y_train,_,_) = load_dataset(f"../Data/dataset_{DS}.npz")
-        fig,axs = plt.subplots(figsize=(10,10))
-        n1,n2 = 100,100
-        if DS == "A":
-            l12,l22,l11,l21 = -1,1.5,-1.5,2.5
-        else:
-            l11,l21,l12,l22 = -1.3,1.3,-1.3,1.3
-        x1,x2 = np.linspace(l11,l21,n1),np.linspace(l12,l22,n2)
-        x1,x2 = np.meshgrid(x1,x2)
-        x1,x2 = x1.reshape((n1*n2),1),x2.reshape((n1*n2),1)
-        X = np.concatenate((x1,x2),axis=1)
-        X1,X2 = x1.reshape((n1,n2)),x2.reshape((n1,n2))
-
-        Y = np.array(eval_decision_tree(tree,X)).reshape(n1,n2)
-        ax = axs
-        a = ax.contourf(X1,X2,Y,colors = ['#ffcccc','#99ffbb'])
-        proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in a.collections]
-        contour_legend = ax.legend(proxy[::-1],["classified as Y = 1","classified as Y = -1"])
-        ax.add_artist(contour_legend)
-        ax.set_ylabel(f"Dataset A")
-        ax.set_title("Num_nodes_stop = 2, criterion = accuracy")
-        X_train_1 = X_train[Y_train == 1]
-        X_train_2 = X_train[Y_train == -1]
-        ax.scatter(X_train_1[:,0],X_train_1[:,1],marker="+",c='#339966',label='Y_train = 1')    
-        ax.scatter(X_train_2[:,0],X_train_2[:,1],marker="x",c='#ff1a1a',label='Y_train = -1')
-        ax.legend(loc="lower left")
-        plt.show()
-
-    (X_train,Y_train,X_test,Y_test) = load_dataset("../Data/dataset_C.npz")
-    #DATASET A tree = train_decision_tree(X_train,Y_train,2,-1,"accuracy")
-    #DATASET B tree = train_decision_tree(X_train,Y_train,40,7,"accuracy")
-    #DATASET C tree = train_decision_tree(X_train,Y_train,10,6,"accuracy")
-    #DATASET D tree = train_decision_tree(X_train,Y_train,20,4,"accuracy")
-    # tree.root.print()
-    #DATASET A tree = train_decision_tree(X_train,Y_train,20,-1,"entropy")
-    #DATASET B tree = train_decision_tree(X_train,Y_train,40,7,"entropy")
-    #DATASET C tree = train_decision_tree(X_train,Y_train,10,6,"entropy")
-    #DATASET D tree = train_decision_tree(X_train,Y_train,20,4,"entropy")
-    tree = train_decision_tree(X_train,Y_train,100,5,"entropy")
-    # plot(tree,"A")
-    Y_pred = eval_decision_tree(tree,X_test)
-    # ftest_df = tree.generate_preds(test_df)
-    print(f'{np.mean(Y_pred == Y_test)}')
