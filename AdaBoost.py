@@ -1,6 +1,4 @@
 import numpy as np
-from DecisionTreeContinous import DecisionTree
-import matplotlib.pyplot as plt
 import copy
 
 class AdaBoost:

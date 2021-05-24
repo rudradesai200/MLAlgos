@@ -39,7 +39,7 @@ class KernelLogistRegression:
     ## Kernel Functions
     def __linear_kernel(self,u,v) : return (np.dot(u,v))
     def __poly_kernel(self,u,v) : return ((self.__kernel_param + np.dot(u,v)) ** self.__degree)
-    def __rbf_kernel(self,u,v) : return (np.exp((-self.__kernel_param)*(np.linalg.norm(u-v)**2)))
+    def __rbf_kernel(self,u,v) : return (np.exp((-self.__kernel_param)*(np.linalg.norm(u-v,axis=-1)**2)))
     
     ## Helpers
     def __sigmoid(x) : return (1/(1+np.exp(-x)))
@@ -150,20 +150,22 @@ class KernelLogistRegression:
         # Used to vectorise the prediction
         def get_pred(x):
             temp = self.__kernel_func(self.__Xtrain, x).reshape(1,-1) @ self.__alpha
-            return np.sign(KernelLogistRegression.__sigmoid(temp) - 0.5)
+            return np.sign(KernelLogistRegression.__sigmoid(temp) - 0.49)
         
-        return np.apply_along_axis(get_pred,1,X)
+        return np.apply_along_axis(get_pred,1,X).reshape(-1,1)
 
 
 # How to use
-# if __name__ == "__main__":
-#     def load_dataset(loc):
-#         ds = np.load(loc)
-#         return (ds['arr_0'],ds['arr_1'],ds['arr_2'],ds['arr_3'])
+if __name__ == "__main__":
+    def load_dataset(loc):
+        ds = np.load(loc)
+        return (ds['arr_0'],ds['arr_1'],ds['arr_2'],ds['arr_3'])
     
-#     (X_train,Y_train,X_test,Y_test) = load_dataset("Data/dataset_A.npz")
-#     clf = KernelLogistRegression(lr=2e-5,max_iter=900,kernel="poly",degree=4,verbose=True)
-#     clf.fit(X_train,Y_train)
-#     Y_pred = clf.predict(X_test).reshape(-1,1)
-#     print(np.mean(Y_pred == Y_test.reshape(-1,1)))
+    (X_train,Y_train,X_test,Y_test) = load_dataset("Data/dataset_C.npz")
+    clf = KernelLogistRegression(lr=1,max_iter=100,kernel="linear",kernel_param=0.01,verbose=True)
+    clf.fit(X_train,Y_train)
+    Y_pred = clf.predict(X_test).reshape(-1,1)
+    # print(Y_pred)
+    # print(Y_test)
+    print(np.mean(Y_pred == Y_test.reshape(-1,1)))
     

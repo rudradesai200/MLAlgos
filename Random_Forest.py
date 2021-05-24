@@ -1,6 +1,5 @@
 import numpy as np
 from DecisionTreeContinous import DecisionTree
-import matplotlib.pyplot as plt
 
 class RandomForest:
     """

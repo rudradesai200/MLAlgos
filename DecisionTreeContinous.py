@@ -238,18 +238,3 @@ class DecisionTree:
         test_df,_ = DecisionTree.__convert_np_to_df(X)
         for i in range(len(X)): y[i] = self.root.predict(test_df.iloc[i])
         return y
-    
-def train_decision_tree(X, y, num_nodes_stop=2, level=-1, criterion='accuracy'):
-    """ Returns a decision tree trained on X and Y. 
-    Stops splitting nodes when a node has hit a size of "num_nodes_stop" or lower.
-    Split criterion can be either 'accuracy' or 'entropy'.
-    Returns a tree (In whatever format that you find appropriate)
-    """
-    tree = DecisionTree(criterion,num_nodes_stop,level)
-    tree.fit(X,y)
-    return tree
-
-def eval_decision_tree(tree, test_X):
-    """ Takes in a tree, and a bunch of instances X and 
-    returns the tree predicted values at those instances."""
-    return tree.predict(test_X)
